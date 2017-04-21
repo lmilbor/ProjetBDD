@@ -87,52 +87,98 @@ order by année
 -- RESULTAT : 36 lignes
 
 -- E.Clients qui ont passé au total au moins 7 jours à l’hôtel au cours d’un même mois (Id, Nom, mois où ils ont passé au moins 7 jours).
-select c.CLI_ID, c.CLI_NOM, COUNT(DAY(PLN_JOUR)) as [nombre de jours],
-MONTH(PLN_JOUR) as mois, YEAR(PLN_JOUR) as année
+select distinct c.CLI_ID, c.CLI_NOM --, COUNT(DAY(PLN_JOUR)) as [nombre de jours],
+-- MONTH(PLN_JOUR) as mois, YEAR(PLN_JOUR) as année
 from CHB_PLN_CLI cpc
 inner join CLIENT c on c.CLI_ID = cpc.CLI_ID
 group by YEAR(PLN_JOUR), MONTH(PLN_JOUR), c.CLI_ID, c.CLI_NOM
 having COUNT(DAY(PLN_JOUR)) >=7
-order by année, mois
+--order by année, mois
 
--- RESULTAT : 417 lignes
+-- RESULTAT : 417 lignes OU 99 clients (suivant si on veut afficher les détails nombre de jours passé par mois et années)
+-- Enlevez les commentaire dans la requête pour avoir les détails.
 
 -- F.Nombre de clients qui sont restés à l’hôtel au moins deux jours de suite au cours de l’année 2015
-select cpc.CLI_ID, c.CLI_NOM
+select COUNT(distinct cpc.CLI_ID) as [Nombre de clients]
 from CHB_PLN_CLI cpc
 inner join CLIENT c on c.CLI_ID = cpc.CLI_ID
 where YEAR(PLN_JOUR) = 2015 and exists
 (select bis.CLI_ID
 from CHB_PLN_CLI bis
-where DATEADD(DAY, 1, cpc.PLN_JOUR) = bis.PLN_JOUR and cpc.CLI_ID = bis.CLI_ID)
+where DATEADD(DAY, 1, cpc.PLN_JOUR) = bis.PLN_JOUR -- 1 jour plus tard
+and cpc.CLI_ID = bis.CLI_ID) -- le même client
 
--- RESULTAT : 575 lignes
+-- RESULTAT : 100 lignes
 
 -- G.Clients qui ont fait un séjour à l’hôtel au moins deux mois de suite
-select cpc.CLI_ID, c.CLI_NOM
+select distinct cpc.CLI_ID, c.CLI_NOM
 from CHB_PLN_CLI cpc
 inner join CLIENT c on c.CLI_ID = cpc.CLI_ID
-where YEAR(PLN_JOUR) = 2015 and exists
-(select bis.CLI_ID
+where exists (select bis.CLI_ID
 from CHB_PLN_CLI bis
-where DATEADD(MONTH, 1, cpc.PLN_JOUR) = bis.PLN_JOUR and cpc.CLI_ID = bis.CLI_ID)
+where DATEADD(MONTH, 1, cpc.PLN_JOUR) = bis.PLN_JOUR -- 1 mois plus tard
+and cpc.CLI_ID = bis.CLI_ID) -- le même client
 
--- RESULTAT : 592 lignes
+-- RESULTAT : 100 lignes
 
 -- H.Nombre quotidien moyen de clients présents dans l’hôtel pour chaque mois de l’année 2016, en tenant compte du nombre de personnes dans les chambres
+select distinct AVG(COUNT(CLI_ID)) over (partition by MONTH(PLN_JOUR)) as [Nombre quotidien moyen], MONTH(PLN_JOUR) as mois
+from CHB_PLN_CLI
+where YEAR(PLN_JOUR) = 2016
+group by MONTH(PLN_JOUR), DAY(PLN_JOUR)
 
--- RESULTAT : 
+-- RESULTAT : 12 lignes
+
 -- I.Clients qui ont réservé plusieurs fois la même chambre au cours d’un même mois, mais pas deux jours d’affilée
--- RESULTAT : 
+select distinct cpc.CLI_ID, c.CLI_NOM
+from CHB_PLN_CLI cpc
+inner join CLIENT c on c.CLI_ID = cpc.CLI_ID
+where exists
+(select bis.CLI_ID
+from CHB_PLN_CLI bis
+where DATEADD(DAY, 1, cpc.PLN_JOUR) != bis.PLN_JOUR -- pas deux jours d'affilés
+and cpc.CLI_ID = bis.CLI_ID -- le même client
+and MONTH(cpc.PLN_JOUR) = MONTH(bis.PLN_JOUR)) -- le même mois
+
+-- RESULTAT : 100 lignes
 
 -- 2.3 Chiffre d'affaire
 
 -- A.Valeur absolue et pourcentage d’augmentation du tarif de chaque chambre sur l’ensemble de la période
 
+declare @i int
+set @i = 1
+while @i <= (select COUNT(CHB_ID) from CHAMBRE)
+begin
+	select new.TRF_CHB_PRIX - old.TRF_CHB_PRIX as Augmentation, 
+		(new.TRF_CHB_PRIX - old.TRF_CHB_PRIX)/old.TRF_CHB_PRIX as Pourcentage
+		from 
+		(select top (1) TRF_DATE_DEBUT, TRF_CHB_PRIX, CHB_ID
+		from TRF_CHB o
+		where o.CHB_ID = @i
+		order by o.TRF_DATE_DEBUT) as old
+		inner join
+		(select top (1) TRF_DATE_DEBUT, TRF_CHB_PRIX, CHB_ID
+		from TRF_CHB n
+		where n.CHB_ID = @i
+		order by n.TRF_DATE_DEBUT desc) as new
+		on new.CHB_ID = old.CHB_ID
+		
+	set @i=@i+1 
+end
+
 -- RESULTAT : 
 -- B.Chiffre d'affaire de l’hôtel par trimestre de chaque année
 
--- RESULTAT : 
+select ROUND(SUM(ISNULL(lf.LIF_MONTANT, 0) * (1-ISNULL(lf.LIF_REMISE_POURCENT/100,0))), 2) as [Chiffre d'affaire], 
+YEAR(FAC_DATE) as année, DATEPART(QUARTER, FAC_DATE) as semestre
+from FACTURE f
+inner join LIGNE_FACTURE lf on lf.FAC_ID = f.FAC_ID
+group by YEAR(FAC_DATE), DATEPART(QUARTER, FAC_DATE)
+order by année, semestre
+
+-- RESULTAT : 9 lignes
+
 -- C.Chiffre d'affaire de l’hôtel par mode de paiement et par an, avec les modes de paiement en colonne et les années en ligne.
 
 -- RESULTAT : 
