@@ -53,12 +53,15 @@ order by a.ADR_VILLE
 -- A.Taux moyen d'occupation de l'hôtel par mois-année.
 --   Autrement dit, pour chaque mois-année valeur moyenne sur les chambres du ratio
 --   (nombre de jours d'occupation dans le mois / nombre de jours du mois)
-SELECT AVG(COUNT(CHB_PLN_CLI_OCCUPE)) over (partition by MONTH(PLN_JOUR), YEAR(PLN_JOUR)) as [Occupation par mois par année],
-MONTH(PLN_JOUR) as mois, YEAR(PLN_JOUR) as année
-FROM CHB_PLN_CLI
-GROUP BY YEAR(PLN_JOUR), MONTH(PLN_JOUR)
-order by année
+SELECT ROUND(SUM(CAST(CHB_PLN_CLI_OCCUPE as REAL))/(20*COUNT(DAY(p.PLN_JOUR))), 2), --over (partition by MONTH(PLN_JOUR), YEAR(PLN_JOUR)) as [Occupation par mois par année],
+MONTH(cpc.PLN_JOUR) as mois, YEAR(cpc.PLN_JOUR) as année
+FROM CHB_PLN_CLI cpc
+right outer join PLANNING p on p.PLN_JOUR = cpc.PLN_JOUR
+GROUP BY YEAR(cpc.PLN_JOUR), MONTH(cpc.PLN_JOUR)
+order by année, mois
 
+select *
+from PLANNING
 -- RESULTAT : 36 lignes : nombre moyen de clients par mois par années
 
 -- B.Taux moyen d'occupation de chaque étage par année
@@ -145,20 +148,21 @@ and MONTH(cpc.PLN_JOUR) = MONTH(bis.PLN_JOUR)) -- le même mois
 -- 2.3 Chiffre d'affaire
 
 -- A.Valeur absolue et pourcentage d’augmentation du tarif de chaque chambre sur l’ensemble de la période
-
+declare @res table (augmentation money, Pourcentage money) -- table de resultat
 declare @i int
 set @i = 1
-while @i <= (select COUNT(CHB_ID) from CHAMBRE)
+while @i <= (select COUNT(CHB_ID) from CHAMBRE) -- on parcourt pour chaque chambre
 begin
+	insert @res
 	select new.TRF_CHB_PRIX - old.TRF_CHB_PRIX as Augmentation, 
-		(new.TRF_CHB_PRIX - old.TRF_CHB_PRIX)/old.TRF_CHB_PRIX as Pourcentage
+		100*(new.TRF_CHB_PRIX - old.TRF_CHB_PRIX)/old.TRF_CHB_PRIX as Pourcentage
 		from 
-		(select top (1) TRF_DATE_DEBUT, TRF_CHB_PRIX, CHB_ID
+		(select top (1) TRF_CHB_PRIX, CHB_ID -- On Récupère le prix pour la plus ancienne date pour la chambre en cours
 		from TRF_CHB o
 		where o.CHB_ID = @i
 		order by o.TRF_DATE_DEBUT) as old
 		inner join
-		(select top (1) TRF_DATE_DEBUT, TRF_CHB_PRIX, CHB_ID
+		(select top (1) TRF_CHB_PRIX, CHB_ID -- On Récupère le prix pour la plus récente date pour la chambre en cours
 		from TRF_CHB n
 		where n.CHB_ID = @i
 		order by n.TRF_DATE_DEBUT desc) as new
@@ -166,8 +170,10 @@ begin
 		
 	set @i=@i+1 
 end
+select * from @res
 
--- RESULTAT : 
+-- RESULTAT : 20 lignes
+
 -- B.Chiffre d'affaire de l’hôtel par trimestre de chaque année
 
 select ROUND(SUM(ISNULL(lf.LIF_MONTANT, 0) * (1-ISNULL(lf.LIF_REMISE_POURCENT/100,0))), 2) as [Chiffre d'affaire], 
