@@ -26,7 +26,7 @@ insert jo.Version (IDLogiciel, IDVersion, millesime, DateOuverture, DateSortie, 
 (0, '2.00', '2018', '2016-12-28', '', '')
 go
 
---insert jo.Release
+--insert jo.Release -- à faire ici si on veut remplir la table jo.Release
 
 insert jo.Module (IDLogiciel, IDModule, Libellé, IDSurModule) values
 (0, 'SEQUENCAGE', 'séquençage', null),
@@ -78,27 +78,28 @@ insert jo.Personne (Login, Prénom, Nom, IDMetier, IDEquipe, LoginManager) values
 ('HKLEIN', 'Hilaire', 'KLEIN', 'TES', 0, null),
 ('NPALMER', 'Nino', 'PALMER', 'TES', 0, null)
 go
+
 -- une tache annexe
 exec jo.usp_CreeTacheAnnexe @libellé = 'Echange technique / formation', @login = 'LBUTLER'
-
+go
 -- une tache de production
 exec jo.usp_CreeTacheProd 
 @libellé = 'AT saisie des utilisateur et droits', @login = 'LBUTLER',
 @dateDebut = '2017-04-20', @dureePrevue = 7, @iDActivite = 'ANT',
 @iDModule = 'UTIL_DROITS', @iDVersion = '1.00'
-
+go
 -- une autre tache très productive
 exec jo.usp_CreeTacheProd 
 @libellé = 'Faire du codingame', @login = 'BNORMAND',
 @dateDebut = '2017-04-10', @dureePrevue = 8, @iDActivite = 'DEV',
 @iDModule = 'MARQUAGE', @iDVersion = '1.00'
-
+go
 -- une tache un peu moins productive
 exec jo.usp_CreeTacheProd 
 @libellé = 'Aller à la pêche ...', @login = 'RFISHER',
 @dateDebut = '2017-05-15', @dureePrevue = 10, @iDActivite = 'ANT',
 @iDModule = 'PARAMETRES', @iDVersion = '1.00'
-
+go
 -- On a passé un peu de temps sur ces taches
 exec jo.usp_SaisieTempsTache @iDTache = 22, @dateTravail = '2017-04-20', @temps = 2, @productivité = 80
 exec jo.usp_SaisieTempsTache @iDTache = 23, @dateTravail = '2017-04-20', @temps = 3, @productivité = 100
@@ -109,3 +110,4 @@ exec jo.usp_SaisieTempsTache @iDTache = 22, @dateTravail = '2017-05-24', @temps 
 exec jo.usp_SaisieTempsTache @iDTache = 25, @dateTravail = '2017-05-24', @temps = 4, @productivité = 100
 exec jo.usp_SaisieTempsTache @iDTache = 24, @dateTravail = '2017-05-25', @temps = 3, @productivité = 90
 exec jo.usp_SaisieTempsTache @iDTache = 23, @dateTravail = '2017-05-27', @temps = 4, @productivité = 75
+go

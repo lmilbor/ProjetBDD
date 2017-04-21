@@ -1,7 +1,7 @@
 -- Vider la Base de donnée
 
-exec usp_DropAll
---exec usp_DropAllPrint
+exec jo.usp_DropAll
+--exec jo.usp_DropAllPrint -- Si on veut le détail des drops.
 --------------------------------------------------------------------------
 -- Création des tables
 
